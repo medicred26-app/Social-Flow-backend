@@ -2,7 +2,7 @@ import { BasePlatformService } from '../base.platform.js';
 import { publishTweet } from './x.publisher.js';
 import { buildXAuthUrl } from './x.oauth.js';
 import { createLogger } from '../../middleware/logger.js';
-import { saveConnectedAccount } from '../../shared/utils/dbHelpers.js';
+import { saveConnectedAccount, getAccountCredentials } from '../../shared/utils/dbHelpers.js';
 
 const logger = createLogger('XService');
 
@@ -36,9 +36,23 @@ export class XService extends BasePlatformService {
 
   async publish(payload) {
     try {
-      const { bearerToken = 'mock_token', caption, mediaIds = [] } = payload;
+      const { caption, mediaIds = [], accountId } = payload;
+      const accountRecord = await getAccountCredentials('x', accountId);
+
+      if (!accountRecord || !accountRecord.accessToken || accountRecord.accessToken.startsWith('mock_')) {
+        return {
+          success: false,
+          error: 'No connected X (Twitter) account found. Please connect your X account first.'
+        };
+      }
+
+      const bearerToken = accountRecord.accessToken;
       const result = await publishTweet(bearerToken, caption, mediaIds);
-      logger.info('Published Tweet successfully', { postId: result.platformPostId });
+      if (result.success) {
+        logger.info('Published Tweet successfully', { postId: result.platformPostId });
+      } else {
+        logger.error('Failed to publish Tweet to X', { error: result.error });
+      }
       return result;
     } catch (err) {
       logger.error('Error publishing to X', err);

@@ -3,7 +3,7 @@ import { publishToFacebookFeed } from './facebook.publisher.js';
 import { buildFacebookAuthUrl, exchangeFacebookCodeForToken } from './facebook.oauth.js';
 import { facebookApiClient } from './facebook.client.js';
 import { createLogger } from '../../middleware/logger.js';
-import { saveConnectedAccount } from '../../shared/utils/dbHelpers.js';
+import { saveConnectedAccount, getAccountCredentials } from '../../shared/utils/dbHelpers.js';
 
 const logger = createLogger('FacebookService');
 
@@ -37,7 +37,6 @@ export class FacebookService extends BasePlatformService {
       let pageAccessToken = selectedPage?.access_token || accessToken;
       let followersCount = selectedPage ? (selectedPage.followers_count ?? selectedPage.fan_count ?? 0) : 0;
 
-      // If page token available, query page directly for precise follower metrics
       if (selectedPage?.id) {
         try {
           const pageDetails = await facebookApiClient.get(selectedPage.id, pageAccessToken, { fields: 'id,name,fan_count,followers_count,picture' });
@@ -46,11 +45,6 @@ export class FacebookService extends BasePlatformService {
         } catch (err) {
           logger.warn('Could not fetch specific page details, using account list data', { error: err.message });
         }
-      }
-
-      // If Meta sandbox/dev mode returns 0 for test page, fallback to 24,500 so stats and graphs display active metrics
-      if (!followersCount || followersCount === 0) {
-        followersCount = 24500;
       }
 
       const accountName = selectedPage ? selectedPage.name : (profile.name || 'Facebook Account');
@@ -77,9 +71,26 @@ export class FacebookService extends BasePlatformService {
 
   async publish(payload) {
     try {
-      const { pageId = 'me', accessToken = 'mock_token', caption, mediaUrls = [] } = payload;
+      const { caption, mediaUrls = [], accountId } = payload;
+
+      const accountRecord = await getAccountCredentials('facebook', accountId);
+
+      if (!accountRecord || !accountRecord.accessToken || accountRecord.accessToken.startsWith('mock_')) {
+        return {
+          success: false,
+          error: 'No connected Facebook account found with a valid Page Access Token. Please connect your Facebook Page.'
+        };
+      }
+
+      const pageId = accountRecord.id || 'me';
+      const accessToken = accountRecord.accessToken;
+
       const result = await publishToFacebookFeed(pageId, accessToken, caption, mediaUrls);
-      logger.info('Published post to Facebook successfully', { postId: result.platformPostId });
+      if (result.success) {
+        logger.info('Published post to Facebook successfully', { postId: result.platformPostId });
+      } else {
+        logger.error('Failed to publish post to Facebook', { error: result.error });
+      }
       return result;
     } catch (err) {
       logger.error('Error publishing to Facebook', err);

@@ -3,10 +3,9 @@ import { parseYouTubeApiError } from './youtube.errors.js';
 
 export async function uploadYouTubeVideo(accessToken, title, description, mediaUrls = []) {
   if (!accessToken || accessToken.startsWith('mock_')) {
-    await new Promise(r => setTimeout(r, 800));
     return {
-      success: true,
-      platformPostId: `yt_video_${Date.now()}`
+      success: false,
+      error: 'YouTube channel is not connected or lacks a valid access token. Please connect your YouTube Channel.'
     };
   }
 

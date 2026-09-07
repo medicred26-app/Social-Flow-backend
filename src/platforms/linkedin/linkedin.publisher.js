@@ -2,10 +2,9 @@ import { linkedinApiClient } from './linkedin.client.js';
 
 export async function publishUgcPost(accessToken, authorUrn, caption) {
   if (!accessToken || accessToken.startsWith('mock_')) {
-    await new Promise(r => setTimeout(r, 750));
     return {
-      success: true,
-      platformPostId: `urn:li:share:${Date.now()}`
+      success: false,
+      error: 'LinkedIn account is not connected or lacks a valid access token. Please connect your LinkedIn Profile.'
     };
   }
 

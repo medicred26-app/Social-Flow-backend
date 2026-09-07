@@ -1,15 +1,24 @@
 import { FACEBOOK_CONFIG } from './facebook.config.js';
 
-export function buildFacebookAuthUrl() {
+export function buildFacebookAuthUrl(overrideScope) {
   if (!FACEBOOK_CONFIG.appId) {
     throw new Error('META_APP_ID environment variable is missing.');
   }
-  const params = new URLSearchParams({
+
+  const queryObj = {
     client_id: FACEBOOK_CONFIG.appId,
     redirect_uri: FACEBOOK_CONFIG.redirectUri,
-    scope: FACEBOOK_CONFIG.defaultScope,
     response_type: 'code'
-  });
+  };
+
+  // If a Facebook Login for Business config_id is provided in environment variables, Meta requires config_id instead of raw scope strings.
+  if (FACEBOOK_CONFIG.configId) {
+    queryObj.config_id = FACEBOOK_CONFIG.configId;
+  } else {
+    queryObj.scope = overrideScope || FACEBOOK_CONFIG.defaultScope;
+  }
+
+  const params = new URLSearchParams(queryObj);
   return `${FACEBOOK_CONFIG.oauthDialogUrl}?${params.toString()}`;
 }
 

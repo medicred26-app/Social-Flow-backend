@@ -2,7 +2,7 @@ import { BasePlatformService } from '../base.platform.js';
 import { publishUgcPost } from './linkedin.publisher.js';
 import { buildLinkedInAuthUrl } from './linkedin.oauth.js';
 import { createLogger } from '../../middleware/logger.js';
-import { saveConnectedAccount } from '../../shared/utils/dbHelpers.js';
+import { saveConnectedAccount, getAccountCredentials } from '../../shared/utils/dbHelpers.js';
 
 const logger = createLogger('LinkedInService');
 
@@ -36,9 +36,25 @@ export class LinkedInService extends BasePlatformService {
 
   async publish(payload) {
     try {
-      const { accessToken = 'mock_token', authorUrn = 'urn:li:person:123', caption } = payload;
+      const { caption, accountId } = payload;
+      const accountRecord = await getAccountCredentials('linkedin', accountId);
+
+      if (!accountRecord || !accountRecord.accessToken || accountRecord.accessToken.startsWith('mock_')) {
+        return {
+          success: false,
+          error: 'No connected LinkedIn account found. Please connect your LinkedIn Profile first.'
+        };
+      }
+
+      const accessToken = accountRecord.accessToken;
+      const authorUrn = accountRecord.id || accountRecord.authorUrn || 'urn:li:person:me';
+
       const result = await publishUgcPost(accessToken, authorUrn, caption);
-      logger.info('Published UGC Post to LinkedIn successfully', { postId: result.platformPostId });
+      if (result.success) {
+        logger.info('Published UGC Post to LinkedIn successfully', { postId: result.platformPostId });
+      } else {
+        logger.error('Failed to publish UGC Post to LinkedIn', { error: result.error });
+      }
       return result;
     } catch (err) {
       logger.error('Error publishing to LinkedIn', err);

@@ -2,10 +2,9 @@ import { facebookApiClient } from './facebook.client.js';
 
 export async function publishToFacebookFeed(pageId, accessToken, caption, mediaUrls = []) {
   if (!accessToken || accessToken.startsWith('mock_')) {
-    await new Promise(r => setTimeout(r, 600));
     return {
-      success: true,
-      platformPostId: `fb_post_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+      success: false,
+      error: 'Facebook account is not connected or lacks a valid Page Access Token. Please connect your Facebook Page.'
     };
   }
 

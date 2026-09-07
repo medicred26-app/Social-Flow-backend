@@ -2,10 +2,9 @@ import { instagramApiClient } from './instagram.client.js';
 
 export async function publishToInstagramMedia(igAccountId, accessToken, caption, imageUrl) {
   if (!accessToken || accessToken.startsWith('mock_')) {
-    await new Promise(r => setTimeout(r, 700));
     return {
-      success: true,
-      platformPostId: `ig_media_${Date.now()}_${Math.floor(Math.random() * 1000)}`
+      success: false,
+      error: 'Instagram account is not connected or lacks a valid access token. Please connect your Instagram Business account.'
     };
   }
 
