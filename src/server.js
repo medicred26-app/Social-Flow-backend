@@ -85,7 +85,7 @@ app.use((req, res) => {
 });
 
 // Start listening
-app.listen(PORT, () => {
+app.listen(PORT, '0.0.0.0', () => {
   console.log(`====================================================`);
   console.log(`🚀 SocialFlow Express Backend Server running on port ${PORT}`);
   console.log(`🌐 Health check: http://localhost:${PORT}/api/health`);

@@ -1,0 +1,62 @@
+services:
+  - type: web
+    name: socialflow-api
+    runtime: node
+    plan: free
+    region: singapore
+    branch: main
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /api/health
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: AI_PROVIDER
+        value: gemini
+      - key: AI_MODEL
+        value: gemini-2.0-flash
+      - key: GEMINI_IMAGE_MODEL
+        value: gemini-2.5-flash-image
+      - key: GEMINI_VIDEO_MODEL
+        value: veo-3.1-fast-generate-preview
+      - key: APP_URL
+        fromService:
+          name: socialflow-api
+          type: web
+          envVarKey: RENDER_EXTERNAL_URL
+      - key: FRONTEND_URL
+        value: https://socialflow-web.onrender.com
+      - key: SUPABASE_URL
+        value: https://kettuzklxorjkydoqcqr.supabase.co
+      - key: SUPABASE_ANON_KEY
+        value: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6ImtldHR1emtseG9yamt5ZG9xY3FyIiwicm9sZSI6ImFub24iLCJpYXQiOjE3NjEyODQ2MjEsImV4cCI6MjA3Njg2MDYyMX0.cnZri4VB7njerX8lZ6H8tlWcItEC9fn1qcaCkTiZS58
+      - key: GOOGLE_CLIENT_ID
+        value: 282450834667-746f0noc03gfpsqg5sc5edji9eoutilu.apps.googleusercontent.com
+      - key: YOUTUBE_REDIRECT_URI
+        value: https://socialflow-api.onrender.com/auth/youtube/callback
+      - key: META_REDIRECT_URI
+        value: https://socialflow-api.onrender.com/api/platforms/facebook/oauth/callback
+      - key: INSTAGRAM_REDIRECT_URI
+        value: https://socialflow-api.onrender.com/api/platforms/instagram/oauth/callback
+      - key: GEMINI_API_KEY
+        sync: false
+      - key: GOOGLE_CLIENT_SECRET
+        sync: false
+      - key: SUPABASE_SERVICE_ROLE_KEY
+        sync: false
+      - key: META_APP_ID
+        sync: false
+      - key: META_APP_SECRET
+        sync: false
+      - key: INSTAGRAM_APP_ID
+        sync: false
+      - key: INSTAGRAM_APP_SECRET
+        sync: false
+      - key: LINKEDIN_CLIENT_ID
+        sync: false
+      - key: LINKEDIN_CLIENT_SECRET
+        sync: false
+      - key: X_CLIENT_ID
+        sync: false
+      - key: X_CLIENT_SECRET
+        sync: false
