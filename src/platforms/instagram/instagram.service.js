@@ -3,7 +3,7 @@ import { publishToInstagramMedia } from './instagram.publisher.js';
 import { buildInstagramAuthUrl, exchangeInstagramCodeForToken } from './instagram.oauth.js';
 import { instagramApiClient } from './instagram.client.js';
 import { createLogger } from '../../middleware/logger.js';
-import { saveConnectedAccount } from '../../shared/utils/dbHelpers.js';
+import { saveConnectedAccount, getAccountCredentials } from '../../shared/utils/dbHelpers.js';
 
 const logger = createLogger('InstagramService');
 
@@ -29,26 +29,43 @@ export class InstagramService extends BasePlatformService {
       if (code) {
         accessToken = await exchangeInstagramCodeForToken(code);
         
-        // 1. Fetch Facebook Pages to locate connected Instagram Business Accounts
-        const pagesData = await instagramApiClient.get('me/accounts', accessToken, {
-          fields: 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count}'
-        });
-
-        const pages = pagesData.data || [];
-        const pageWithIg = pages.find(p => p.instagram_business_account);
-
-        if (!pageWithIg || !pageWithIg.instagram_business_account) {
-          throw new Error('No Instagram Business/Creator account found linked to your Facebook Pages. Please ensure your Instagram account is set to Business or Creator and linked to a Facebook Page.');
+        let igProfile = null;
+        try {
+          igProfile = await instagramApiClient.get('me', accessToken, {
+            fields: 'id,username,name,profile_picture_url,followers_count'
+          });
+        } catch (err) {
+          logger.warn('Direct me profile query failed, trying me/accounts fallback', { error: err.message });
         }
 
-        const igBusAcc = pageWithIg.instagram_business_account;
-        igAccountId = igBusAcc.id;
-        accountName = igBusAcc.name || igBusAcc.username || 'Instagram Business Account';
-        handle = igBusAcc.username ? `@${igBusAcc.username}` : '@instagram_user';
-        avatar = igBusAcc.profile_picture_url || 'https://images.unsplash.com/photo-1611262588024-d12430b98920?auto=format&fit=crop&w=150&q=80';
-        followers = igBusAcc.followers_count || 0;
-        // Use page access token if available, or fallback to user access token
-        accessToken = pageWithIg.access_token || accessToken;
+        if (igProfile && (igProfile.id || igProfile.username)) {
+          igAccountId = igProfile.id;
+          accountName = igProfile.name || igProfile.username || 'Instagram Business Account';
+          handle = igProfile.username ? `@${igProfile.username}` : '@instagram_user';
+          avatar = igProfile.profile_picture_url || 'https://images.unsplash.com/photo-1611262588024-d12430b98920?auto=format&fit=crop&w=150&q=80';
+          followers = igProfile.followers_count || 0;
+        } else {
+          try {
+            const pagesData = await instagramApiClient.get('me/accounts', accessToken, {
+              fields: 'id,name,access_token,instagram_business_account{id,username,name,profile_picture_url,followers_count}'
+            });
+
+            const pages = pagesData.data || [];
+            const pageWithIg = pages.find(p => p.instagram_business_account);
+
+            if (pageWithIg && pageWithIg.instagram_business_account) {
+              const igBusAcc = pageWithIg.instagram_business_account;
+              igAccountId = igBusAcc.id;
+              accountName = igBusAcc.name || igBusAcc.username || 'Instagram Business Account';
+              handle = igBusAcc.username ? `@${igBusAcc.username}` : '@instagram_user';
+              avatar = igBusAcc.profile_picture_url || 'https://images.unsplash.com/photo-1611262588024-d12430b98920?auto=format&fit=crop&w=150&q=80';
+              followers = igBusAcc.followers_count || 0;
+              accessToken = pageWithIg.access_token || accessToken;
+            }
+          } catch (err) {
+            logger.warn('Could not fetch Instagram accounts from Facebook Pages API', { error: err.message });
+          }
+        }
       }
 
       const accountData = {
@@ -73,10 +90,34 @@ export class InstagramService extends BasePlatformService {
 
   async publish(payload) {
     try {
-      const { igAccountId = 'me', accessToken = 'mock_token', caption, mediaUrls = [] } = payload;
-      const imageUrl = mediaUrls[0] || 'https://images.unsplash.com/photo-1611162617213-7d7a39e9b1d7?auto=format&fit=crop&w=800&q=80';
+      const { caption, mediaUrls = [], accountId } = payload;
+
+      const accountRecord = await getAccountCredentials('instagram', accountId);
+
+      if (!accountRecord || !accountRecord.accessToken || accountRecord.accessToken.startsWith('mock_')) {
+        return {
+          success: false,
+          error: 'No connected Instagram account found. Please connect your Instagram Business account first.'
+        };
+      }
+
+      const igAccountId = accountRecord.id || accountRecord.igAccountId || 'me';
+      const accessToken = accountRecord.accessToken;
+      const imageUrl = mediaUrls[0];
+
+      if (!imageUrl) {
+        return {
+          success: false,
+          error: 'An image URL is required to publish to Instagram.'
+        };
+      }
+
       const result = await publishToInstagramMedia(igAccountId, accessToken, caption, imageUrl);
-      logger.info('Published post to Instagram successfully', { postId: result.platformPostId });
+      if (result.success) {
+        logger.info('Published post to Instagram successfully', { postId: result.platformPostId });
+      } else {
+        logger.error('Failed to publish post to Instagram', { error: result.error });
+      }
       return result;
     } catch (err) {
       logger.error('Error publishing to Instagram', err);

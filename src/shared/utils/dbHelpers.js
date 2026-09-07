@@ -66,6 +66,55 @@ export function getConnectedAccounts(platform = null) {
   return accounts.filter(a => a.platform === platform);
 }
 
+export async function getAccountCredentials(platform, accountId = null) {
+  const memoryAccounts = Array.from(connectedAccountsDb.values())
+    .filter(a => a.platform === platform && a.status === 'connected');
+  
+  let match = null;
+  if (accountId) {
+    match = memoryAccounts.find(a => a.id === accountId || a.handle === accountId);
+  }
+  if (!match && memoryAccounts.length > 0) {
+    match = memoryAccounts[0];
+  }
+
+  if (match && match.accessToken) {
+    return match;
+  }
+
+  try {
+    if (supabase) {
+      let query = supabase.from('social_accounts')
+        .select('*')
+        .eq('platform', platform)
+        .eq('status', 'connected');
+      
+      if (accountId) {
+        query = query.eq('account_id', accountId);
+      }
+
+      const { data, error } = await query;
+      if (!error && data && data.length > 0) {
+        const record = data[0];
+        return {
+          id: record.account_id,
+          name: record.name,
+          handle: record.handle,
+          avatar: record.avatar,
+          followers: record.followers,
+          accessToken: record.access_token,
+          refreshToken: record.refresh_token || null,
+          status: record.status
+        };
+      }
+    }
+  } catch (err) {
+    console.warn('[Supabase Sync] Could not fetch account credentials from Supabase:', err.message);
+  }
+
+  return match || null;
+}
+
 export async function disconnectConnectedAccount(platform, accountId) {
   const keyPattern = accountId ? `${platform}_${accountId}` : null;
   for (const [key, acc] of connectedAccountsDb.entries()) {

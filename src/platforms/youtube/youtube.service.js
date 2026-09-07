@@ -2,7 +2,7 @@ import { BasePlatformService } from '../base.platform.js';
 import { uploadYouTubeVideo } from './youtube.publisher.js';
 import { buildYouTubeAuthUrl, exchangeCodeForTokens, fetchYouTubeChannelProfile } from './youtube.oauth.js';
 import { createLogger } from '../../middleware/logger.js';
-import { saveConnectedAccount } from '../../shared/utils/dbHelpers.js';
+import { saveConnectedAccount, getAccountCredentials } from '../../shared/utils/dbHelpers.js';
 import { encryptToken } from '../../shared/utils/encryption.js';
 import { supabase } from '../../shared/utils/supabase.js';
 
@@ -97,13 +97,26 @@ export class YouTubeService extends BasePlatformService {
 
   async publish(payload) {
     try {
-      const { accessToken = 'mock_token', caption = '', mediaUrls = [] } = payload;
+      const { caption = '', mediaUrls = [], accountId } = payload;
+
+      const accountRecord = await getAccountCredentials('youtube', accountId);
+
+      if (!accountRecord || !accountRecord.accessToken || accountRecord.accessToken.startsWith('mock_')) {
+        return {
+          success: false,
+          error: 'No connected YouTube channel found. Please connect your YouTube Channel via Google OAuth first.'
+        };
+      }
+
+      const accessToken = accountRecord.accessToken;
       const title = caption.substring(0, 50) || 'New YouTube Update';
       const result = await uploadYouTubeVideo(accessToken, title, caption, mediaUrls);
-      if (!result.success) {
-        return result;
+
+      if (result.success) {
+        logger.info('Uploaded video to YouTube successfully', { postId: result.platformPostId });
+      } else {
+        logger.error('Failed to upload video to YouTube', { error: result.error });
       }
-      logger.info('Uploaded video to YouTube successfully', { postId: result.platformPostId });
       return result;
     } catch (err) {
       logger.error('Error publishing to YouTube', err);
