@@ -5,6 +5,7 @@ services:
     plan: free
     region: singapore
     branch: main
+    autoDeploy: true
     buildCommand: npm install
     startCommand: npm start
     healthCheckPath: /api/health
@@ -20,10 +21,7 @@ services:
       - key: GEMINI_VIDEO_MODEL
         value: gemini-omni-1.1-flash
       - key: APP_URL
-        fromService:
-          name: socialflow-api
-          type: web
-          envVarKey: RENDER_EXTERNAL_URL
+        value: https://socialflow-api.onrender.com
       - key: FRONTEND_URL
         value: https://socialflow-web.onrender.com
       - key: SUPABASE_URL
