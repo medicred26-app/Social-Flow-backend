@@ -43,17 +43,23 @@ app.use((req, res, next) => {
   next();
 });
 
-// Health check endpoint
+app.get('/', (_req, res) => {
+  res.json({ status: 'online', service: 'socialflow-api' });
+});
+
 app.get('/api/health', (req, res) => {
-  res.json({
+  const payload = {
     status: 'online',
     service: 'SocialFlow Backend API Server',
     version: '2.5.0 (Unified Content Studio, Library, Services & Publishing Platform)',
     timestamp: new Date().toISOString(),
     platforms: ['facebook', 'instagram', 'youtube', 'x', 'linkedin'],
     googleOauthConfigured: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
-    geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.AI_API_KEY),
-    oauth: {
+    geminiConfigured: Boolean(process.env.GEMINI_API_KEY || process.env.AI_API_KEY),
+  };
+
+  try {
+    payload.oauth = {
       appUrl: getAppUrl(),
       frontendUrl: getFrontendUrl(),
       facebookRedirect: FACEBOOK_CONFIG.redirectUri,
@@ -63,8 +69,12 @@ app.get('/api/health', (req, res) => {
       linkedinRedirect: getLinkedInRedirectUri(),
       metaAppId: Boolean(FACEBOOK_CONFIG.appId),
       instagramAppId: Boolean(INSTAGRAM_CONFIG.appId),
-    },
-  });
+    };
+  } catch (err) {
+    payload.oauth = { error: err.message };
+  }
+
+  res.status(200).json(payload);
 });
 
 // Generic Auth and API Routes
@@ -121,9 +131,14 @@ app.get('/api/oauth/instagram/callback', (req, res) => {
   res.redirect(forwardQuery(req, '/api/platforms/instagram/oauth/callback'));
 });
 
-// Fallback 404 handler
 app.use((req, res) => {
   res.status(404).json({ error: 'Endpoint not found on SocialFlow backend API server.' });
+});
+
+app.use((err, _req, res, next) => {
+  console.error('[SocialFlow Backend] Unhandled error:', err?.stack || err);
+  if (res.headersSent) return next(err);
+  res.status(500).json({ error: err.message || 'Internal server error' });
 });
 
 // Start listening
