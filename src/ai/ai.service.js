@@ -216,6 +216,7 @@ STRICT JSON OUTPUT FORMAT ONLY:
       }).catch((err) => logger.warn('DB record error:', err.message));
       return {
         provider: video.model,
+        mediaType: 'video',
         videoUrl: video.videoUrl,
         sourceUri: video.sourceUri,
         aspectRatio,
@@ -224,16 +225,29 @@ STRICT JSON OUTPUT FORMAT ONLY:
         hook: captions.hook,
         cta: captions.cta,
         hashtags: captions.hashtags,
-        message: 'Generated AI video with Gemini Veo.',
+        message: `Generated AI video with ${video.model}.`,
       };
     } catch (videoErr) {
-      logger.warn('Veo unavailable, generating a still + script:', videoErr.message);
+      logger.warn('Cinematic video unavailable, building a motion storyboard:', videoErr.message);
       const [image, script] = await Promise.all([
         generateGeminiImage({ prompt, aspectRatio }).catch(() => null),
         callLlmProvider({
-          systemPrompt: `Write a ready-to-shoot short-form video package.
+          systemPrompt: `Create a short-form social video package.
 STRICT JSON OUTPUT FORMAT ONLY:
-{"script":"shot-by-shot 15s script","caption":"publish-ready caption","hook":"first line","cta":"call to action","hashtags":["tag1","tag2"]}`,
+{
+  "title":"6 word title",
+  "script":"shot-by-shot 12s script",
+  "caption":"publish-ready caption",
+  "hook":"first line",
+  "cta":"call to action",
+  "hashtags":["tag1","tag2"],
+  "scenes":[
+    {"heading":"HOOK","line":"on-screen text","visual":"what the viewer sees","color":"#4f46e5"},
+    {"heading":"PROBLEM","line":"on-screen text","visual":"what the viewer sees","color":"#7c3aed"},
+    {"heading":"PAYOFF","line":"on-screen text","visual":"what the viewer sees","color":"#db2777"},
+    {"heading":"CTA","line":"on-screen text","visual":"what the viewer sees","color":"#059669"}
+  ]
+}`,
           userPrompt: `Video concept: ${prompt}\nAspect: ${aspectRatio}`,
         }),
       ]);
@@ -241,7 +255,8 @@ STRICT JSON OUTPUT FORMAT ONLY:
         throw videoErr;
       }
       return {
-        provider: 'gemini-fallback-storyboard',
+        provider: image ? 'gemini-image-storyboard' : 'gemini-motion-storyboard',
+        mediaType: image ? 'image' : 'storyboard',
         videoUrl: image?.imageUrl || '',
         thumbnailUrl: image?.imageUrl || '',
         aspectRatio,
@@ -251,7 +266,13 @@ STRICT JSON OUTPUT FORMAT ONLY:
         cta: script.cta,
         hashtags: script.hashtags,
         script: script.script,
-        message: `Veo video is not enabled for this key (${videoErr.message}). Generated a Gemini storyboard image and script instead.`,
+        storyboard: {
+          title: script.title || 'SocialFlow Reel',
+          scenes: Array.isArray(script.scenes) ? script.scenes : [],
+        },
+        message: image
+          ? 'Cinematic video quota is used up, so Gemini returned a storyboard image and script.'
+          : 'Cinematic Veo/Omni quota is used up on this key. Gemini wrote a motion storyboard you can play as a reel.',
       };
     }
   }

@@ -2,6 +2,7 @@ import express from 'express';
 import { aiService } from './ai.service.js';
 import { AiConfigError, AiApiError, proxyGeminiMedia } from './ai.provider.js';
 import { AI_CONFIG } from './ai.config.js';
+import { createVideoJob, getGeneratedMedia, getVideoJob, updateVideoJob } from './ai.jobs.js';
 
 const router = express.Router();
 
@@ -19,6 +20,8 @@ router.get('/status', (_req, res) => {
     configured: Boolean(AI_CONFIG.apiKey),
     provider: AI_CONFIG.provider,
     model: AI_CONFIG.model,
+    imageModel: AI_CONFIG.imageModel,
+    videoModel: AI_CONFIG.videoModel,
   });
 });
 
@@ -35,6 +38,26 @@ router.get('/media/proxy', async (req, res) => {
   }
 });
 
+router.get('/media/:id', (req, res) => {
+  const media = getGeneratedMedia(req.params.id);
+  if (!media) return res.status(404).json({ success: false, error: 'Generated media expired. Generate again.' });
+  res.setHeader('Content-Type', media.contentType);
+  res.setHeader('Cache-Control', 'private, max-age=3600');
+  return res.send(media.buffer);
+});
+
+router.get('/video/jobs/:id', (req, res) => {
+  const job = getVideoJob(req.params.id);
+  if (!job) return res.status(404).json({ success: false, error: 'Video job not found. Generate again.' });
+  if (job.status === 'error') {
+    return res.json({ success: false, jobId: job.id, status: job.status, error: job.error });
+  }
+  if (job.status !== 'done') {
+    return res.json({ success: true, jobId: job.id, status: job.status });
+  }
+  return res.json({ success: true, jobId: job.id, status: 'done', ...job.result });
+});
+
 router.post('/enhance-post', async (req, res) => {
   try {
     const data = await aiService.enhancePost(req.body || {});
@@ -46,8 +69,17 @@ router.post('/enhance-post', async (req, res) => {
 
 router.post('/video/generate', async (req, res) => {
   try {
-    const data = await aiService.generateVideo(req.body || {});
-    res.json({ success: true, ...data });
+    const jobId = createVideoJob();
+    res.json({ success: true, jobId, status: 'queued' });
+    setImmediate(async () => {
+      try {
+        updateVideoJob(jobId, { status: 'running' });
+        const data = await aiService.generateVideo(req.body || {});
+        updateVideoJob(jobId, { status: 'done', result: data });
+      } catch (err) {
+        updateVideoJob(jobId, { status: 'error', error: err.message || 'Video generation failed.' });
+      }
+    });
   } catch (err) {
     sendAiError(res, err);
   }

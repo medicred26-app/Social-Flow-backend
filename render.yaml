@@ -14,11 +14,11 @@ services:
       - key: AI_PROVIDER
         value: gemini
       - key: AI_MODEL
-        value: gemini-2.0-flash
+        value: gemini-3.6-flash
       - key: GEMINI_IMAGE_MODEL
-        value: gemini-2.5-flash-image
+        value: gemini-3.1-flash-image
       - key: GEMINI_VIDEO_MODEL
-        value: veo-3.1-fast-generate-preview
+        value: gemini-omni-1.1-flash
       - key: APP_URL
         fromService:
           name: socialflow-api

@@ -25,13 +25,21 @@ export const AI_CONFIG = {
     return hasGeminiKey() ? 'gemini' : 'openai';
   },
   get model() {
-    return process.env.AI_MODEL || (this.provider === 'gemini' ? 'gemini-2.0-flash' : 'gpt-4o-mini');
+    return process.env.AI_MODEL || (this.provider === 'gemini' ? 'gemini-3.6-flash' : 'gpt-4o-mini');
+  },
+  get textModels() {
+    return [...new Set([
+      this.model,
+      'gemini-3.6-flash',
+      'gemini-3.5-flash',
+      'gemini-2.5-flash',
+    ])];
   },
   get imageModel() {
-    return process.env.GEMINI_IMAGE_MODEL || 'gemini-2.5-flash-image';
+    return process.env.GEMINI_IMAGE_MODEL || 'gemini-3.1-flash-image';
   },
   get videoModel() {
-    return process.env.GEMINI_VIDEO_MODEL || 'veo-3.1-fast-generate-preview';
+    return process.env.GEMINI_VIDEO_MODEL || 'gemini-omni-1.1-flash';
   },
   get baseUrl() {
     if (process.env.AI_BASE_URL) return process.env.AI_BASE_URL;
