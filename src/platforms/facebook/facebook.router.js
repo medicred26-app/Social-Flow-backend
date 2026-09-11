@@ -1,57 +1,61 @@
 import { Router } from 'express';
 import { facebookService } from './facebook.service.js';
+import { FACEBOOK_CONFIG } from './facebook.config.js';
+import { encodeOAuthState, frontendAccountsUrl } from '../../shared/utils/publicUrls.js';
 
 const router = Router();
 
-// GET Initiate OAuth Flow
 router.get('/oauth', (req, res) => {
   try {
-    const url = facebookService.getAuthUrl();
+    req.oauthState = encodeOAuthState(req);
+    const url = facebookService.getAuthUrl(req);
     res.redirect(url);
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.redirect(frontendAccountsUrl(req, { error: err.message }));
   }
 });
 
-// GET OAuth Callback
 router.get('/oauth/callback', async (req, res) => {
   const { code, error, error_description } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
 
   if (error) {
-    return res.redirect(`${frontendUrl}/accounts?error=${encodeURIComponent(error_description || error)}`);
+    return res.redirect(frontendAccountsUrl(req, { error: error_description || error }));
   }
 
   if (!code) {
-    return res.redirect(`${frontendUrl}/accounts?error=${encodeURIComponent('No code received from Facebook')}`);
+    return res.redirect(frontendAccountsUrl(req, { error: 'No code received from Facebook' }));
   }
 
   const result = await facebookService.connect({ code });
   if (result.success) {
-    const redirectParams = new URLSearchParams({
-      facebook_connected: 'true',
-      name: result.account.name || 'Facebook Account',
-      handle: result.account.handle || '@facebook',
-      avatar: result.account.avatar || '',
-      followers: (result.account.followers || 0).toString()
-    });
-    return res.redirect(`${frontendUrl}/accounts?${redirectParams.toString()}`);
-  } else {
-    return res.redirect(`${frontendUrl}/accounts?error=${encodeURIComponent(result.error)}`);
+    return res.redirect(
+      frontendAccountsUrl(req, {
+        facebook_connected: 'true',
+        name: result.account.name || 'Facebook Account',
+        handle: result.account.handle || '@facebook',
+        avatar: result.account.avatar || '',
+        followers: result.account.followers || 0,
+      })
+    );
   }
+
+  return res.redirect(frontendAccountsUrl(req, { error: result.error }));
 });
 
-// POST Publish to Facebook
+router.get('/oauth/debug', (_req, res) => {
+  res.json({
+    success: true,
+    appIdConfigured: Boolean(FACEBOOK_CONFIG.appId),
+    redirectUri: FACEBOOK_CONFIG.redirectUri,
+  });
+});
+
 router.post('/publish', async (req, res) => {
   const result = await facebookService.publish(req.body);
-  if (result.success) {
-    res.json(result);
-  } else {
-    res.status(400).json(result);
-  }
+  if (result.success) res.json(result);
+  else res.status(400).json(result);
 });
 
-// POST Disconnect Facebook Account
 router.post('/disconnect', async (req, res) => {
   const { accountId } = req.body;
   const result = await facebookService.disconnect(accountId);

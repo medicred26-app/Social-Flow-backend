@@ -1,8 +1,8 @@
 import { INSTAGRAM_CONFIG } from './instagram.config.js';
 
-export function buildInstagramAuthUrl() {
+export function buildInstagramAuthUrl(state) {
   if (!INSTAGRAM_CONFIG.appId) {
-    throw new Error('INSTAGRAM_APP_ID environment variable is missing.');
+    throw new Error('INSTAGRAM_APP_ID or META_APP_ID environment variable is missing.');
   }
   const params = new URLSearchParams({
     client_id: INSTAGRAM_CONFIG.appId,
@@ -10,6 +10,7 @@ export function buildInstagramAuthUrl() {
     scope: INSTAGRAM_CONFIG.defaultScope,
     response_type: 'code'
   });
+  if (state) params.set('state', state);
   return `${INSTAGRAM_CONFIG.oauthDialogUrl}?${params.toString()}`;
 }
 

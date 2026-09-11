@@ -13,8 +13,8 @@ export class YouTubeService extends BasePlatformService {
     super('youtube', 'YouTube Channel');
   }
 
-  getAuthUrl() {
-    return buildYouTubeAuthUrl();
+  getAuthUrl(req) {
+    return buildYouTubeAuthUrl(req?.oauthState);
   }
 
   async handleOAuthCallback(code) {

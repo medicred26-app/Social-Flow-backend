@@ -1,42 +1,44 @@
 import { Router } from 'express';
 import { instagramService } from './instagram.service.js';
+import { encodeOAuthState, frontendAccountsUrl } from '../../shared/utils/publicUrls.js';
 
 const router = Router();
 
 router.get('/oauth', (req, res) => {
   try {
-    const url = instagramService.getAuthUrl();
+    req.oauthState = encodeOAuthState(req);
+    const url = instagramService.getAuthUrl(req);
     res.redirect(url);
   } catch (err) {
-    res.status(500).json({ success: false, message: err.message });
+    res.redirect(frontendAccountsUrl(req, { error: err.message }));
   }
 });
 
 router.get('/oauth/callback', async (req, res) => {
   const { code, error, error_description } = req.query;
-  const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:4000';
 
   if (error) {
-    return res.redirect(`${frontendUrl}/accounts?error=${encodeURIComponent(error_description || error)}`);
+    return res.redirect(frontendAccountsUrl(req, { error: error_description || error }));
   }
 
   if (!code) {
-    return res.redirect(`${frontendUrl}/accounts?error=${encodeURIComponent('No code received from Instagram/Meta')}`);
+    return res.redirect(frontendAccountsUrl(req, { error: 'No code received from Instagram/Meta' }));
   }
 
   const result = await instagramService.connect({ code });
   if (result.success) {
-    const redirectParams = new URLSearchParams({
-      instagram_connected: 'true',
-      name: result.account.name || 'Instagram Account',
-      handle: result.account.handle || '@instagram',
-      avatar: result.account.avatar || '',
-      followers: (result.account.followers || 0).toString()
-    });
-    return res.redirect(`${frontendUrl}/accounts?${redirectParams.toString()}`);
-  } else {
-    return res.redirect(`${frontendUrl}/accounts?error=${encodeURIComponent(result.error)}`);
+    return res.redirect(
+      frontendAccountsUrl(req, {
+        instagram_connected: 'true',
+        name: result.account.name || 'Instagram Account',
+        handle: result.account.handle || '@instagram',
+        avatar: result.account.avatar || '',
+        followers: result.account.followers || 0,
+      })
+    );
   }
+
+  return res.redirect(frontendAccountsUrl(req, { error: result.error }));
 });
 
 router.post('/connect', async (req, res) => {

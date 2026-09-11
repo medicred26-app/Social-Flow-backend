@@ -1,6 +1,12 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import { getAppUrl, getFrontendUrl } from './shared/utils/publicUrls.js';
+import { getXRedirectUri } from './platforms/x/x.oauth.js';
+import { getLinkedInRedirectUri } from './platforms/linkedin/linkedin.oauth.js';
+import { FACEBOOK_CONFIG } from './platforms/facebook/facebook.config.js';
+import { INSTAGRAM_CONFIG } from './platforms/instagram/instagram.config.js';
+import { YOUTUBE_CONFIG } from './platforms/youtube/youtube.config.js';
 import authRoutes from './routes/auth.js';
 import postsRoutes from './routes/posts.js';
 import accountsRoutes from './routes/accounts.js';
@@ -21,6 +27,7 @@ dotenv.config();
 
 const app = express();
 const PORT = process.env.PORT || 5000;
+app.set('trust proxy', 1);
 
 // Middleware
 app.use(cors({
@@ -44,8 +51,19 @@ app.get('/api/health', (req, res) => {
     version: '2.5.0 (Unified Content Studio, Library, Services & Publishing Platform)',
     timestamp: new Date().toISOString(),
     platforms: ['facebook', 'instagram', 'youtube', 'x', 'linkedin'],
-    googleOauthConfigured: !!process.env.GOOGLE_CLIENT_ID,
+    googleOauthConfigured: Boolean(process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET),
     geminiConfigured: !!(process.env.GEMINI_API_KEY || process.env.AI_API_KEY),
+    oauth: {
+      appUrl: getAppUrl(),
+      frontendUrl: getFrontendUrl(),
+      facebookRedirect: FACEBOOK_CONFIG.redirectUri,
+      instagramRedirect: INSTAGRAM_CONFIG.redirectUri,
+      youtubeRedirect: YOUTUBE_CONFIG.redirectUri,
+      xRedirect: getXRedirectUri(),
+      linkedinRedirect: getLinkedInRedirectUri(),
+      metaAppId: Boolean(FACEBOOK_CONFIG.appId),
+      instagramAppId: Boolean(INSTAGRAM_CONFIG.appId),
+    },
   });
 });
 
@@ -73,10 +91,34 @@ app.use('/api/platforms/x', xRouter);
 app.use('/api/platforms/linkedin', linkedinRouter);
 
 // Direct Root Auth Callbacks (e.g. /auth/youtube/callback)
-app.get('/auth/youtube', (req, res) => res.redirect('/api/platforms/youtube/oauth'));
-app.get('/auth/youtube/callback', (req, res) => {
+function forwardQuery(req, path) {
   const query = new URLSearchParams(req.query).toString();
-  res.redirect(`/api/platforms/youtube/oauth/callback?${query}`);
+  return query ? `${path}?${query}` : path;
+}
+
+app.get('/auth/youtube', (req, res) => res.redirect(forwardQuery(req, '/api/platforms/youtube/oauth')));
+app.get('/auth/youtube/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/youtube/oauth/callback'));
+});
+app.get('/auth/facebook', (req, res) => res.redirect(forwardQuery(req, '/api/platforms/facebook/oauth')));
+app.get('/auth/facebook/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/facebook/oauth/callback'));
+});
+app.get('/api/auth/facebook/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/facebook/oauth/callback'));
+});
+app.get('/api/oauth/facebook/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/facebook/oauth/callback'));
+});
+app.get('/auth/instagram', (req, res) => res.redirect(forwardQuery(req, '/api/platforms/instagram/oauth')));
+app.get('/auth/instagram/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/instagram/oauth/callback'));
+});
+app.get('/api/oauth/youtube/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/youtube/oauth/callback'));
+});
+app.get('/api/oauth/instagram/callback', (req, res) => {
+  res.redirect(forwardQuery(req, '/api/platforms/instagram/oauth/callback'));
 });
 
 // Fallback 404 handler

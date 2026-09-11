@@ -1,3 +1,5 @@
+import { resolveRedirectUri } from '../../shared/utils/publicUrls.js';
+
 export const FACEBOOK_CONFIG = {
   platformId: 'facebook',
   displayName: 'Facebook Page',
@@ -11,7 +13,10 @@ export const FACEBOOK_CONFIG = {
     return process.env.META_APP_SECRET || process.env.FACEBOOK_APP_SECRET || '';
   },
   get redirectUri() {
-    return process.env.META_REDIRECT_URI || 'http://localhost:5000/api/platforms/facebook/oauth/callback';
+    return resolveRedirectUri(
+      process.env.META_REDIRECT_URI,
+      '/api/platforms/facebook/oauth/callback'
+    );
   },
   get configId() {
     return process.env.META_CONFIG_ID || process.env.FACEBOOK_CONFIG_ID || '';

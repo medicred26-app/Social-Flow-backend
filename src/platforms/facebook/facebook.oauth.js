@@ -1,6 +1,6 @@
 import { FACEBOOK_CONFIG } from './facebook.config.js';
 
-export function buildFacebookAuthUrl(overrideScope) {
+export function buildFacebookAuthUrl(overrideScope, state) {
   if (!FACEBOOK_CONFIG.appId) {
     throw new Error('META_APP_ID environment variable is missing.');
   }
@@ -10,6 +10,7 @@ export function buildFacebookAuthUrl(overrideScope) {
     redirect_uri: FACEBOOK_CONFIG.redirectUri,
     response_type: 'code'
   };
+  if (state) queryObj.state = state;
 
   // If a Facebook Login for Business config_id is provided in environment variables, Meta requires config_id instead of raw scope strings.
   if (FACEBOOK_CONFIG.configId) {

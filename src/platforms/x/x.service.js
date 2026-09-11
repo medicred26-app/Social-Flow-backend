@@ -11,8 +11,8 @@ export class XService extends BasePlatformService {
     super('x', 'X (Twitter)');
   }
 
-  getAuthUrl() {
-    return buildXAuthUrl();
+  getAuthUrl(req) {
+    return buildXAuthUrl(req);
   }
 
   async connect(params) {

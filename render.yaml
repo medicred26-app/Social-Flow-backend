@@ -38,6 +38,10 @@ services:
         value: https://socialflow-api.onrender.com/api/platforms/facebook/oauth/callback
       - key: INSTAGRAM_REDIRECT_URI
         value: https://socialflow-api.onrender.com/api/platforms/instagram/oauth/callback
+      - key: X_REDIRECT_URI
+        value: https://socialflow-api.onrender.com/api/platforms/x/oauth/callback
+      - key: LINKEDIN_REDIRECT_URI
+        value: https://socialflow-api.onrender.com/api/platforms/linkedin/oauth/callback
       - key: GEMINI_API_KEY
         sync: false
       - key: GOOGLE_CLIENT_SECRET

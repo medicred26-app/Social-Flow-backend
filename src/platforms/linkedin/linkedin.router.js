@@ -1,10 +1,27 @@
 import { Router } from 'express';
 import { linkedinService } from './linkedin.service.js';
+import { frontendAccountsUrl } from '../../shared/utils/publicUrls.js';
 
 const router = Router();
 
 router.get('/oauth', (req, res) => {
-  res.redirect(linkedinService.getAuthUrl());
+  try {
+    res.redirect(linkedinService.getAuthUrl(req));
+  } catch (err) {
+    res.redirect(frontendAccountsUrl(req, { error: err.message }));
+  }
+});
+
+router.get('/oauth/callback', (req, res) => {
+  const { error, error_description } = req.query;
+  if (error) {
+    return res.redirect(frontendAccountsUrl(req, { error: error_description || error }));
+  }
+  return res.redirect(
+    frontendAccountsUrl(req, {
+      error: 'LinkedIn connected back to SocialFlow. Add LINKEDIN_CLIENT_ID and LINKEDIN_CLIENT_SECRET on Render to finish token exchange.',
+    })
+  );
 });
 
 router.post('/connect', async (req, res) => {

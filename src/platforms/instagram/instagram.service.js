@@ -12,8 +12,8 @@ export class InstagramService extends BasePlatformService {
     super('instagram', 'Instagram Business');
   }
 
-  getAuthUrl() {
-    return buildInstagramAuthUrl();
+  getAuthUrl(req) {
+    return buildInstagramAuthUrl(req?.oauthState);
   }
 
   async connect(params) {

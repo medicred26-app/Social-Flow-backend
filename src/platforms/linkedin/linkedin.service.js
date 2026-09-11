@@ -11,8 +11,8 @@ export class LinkedInService extends BasePlatformService {
     super('linkedin', 'LinkedIn Profile');
   }
 
-  getAuthUrl() {
-    return buildLinkedInAuthUrl();
+  getAuthUrl(req) {
+    return buildLinkedInAuthUrl(req);
   }
 
   async connect(params) {

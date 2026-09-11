@@ -1,6 +1,9 @@
 import { YOUTUBE_CONFIG } from './youtube.config.js';
 
-export function buildYouTubeAuthUrl() {
+export function buildYouTubeAuthUrl(state) {
+  if (!YOUTUBE_CONFIG.clientId) {
+    throw new Error('GOOGLE_CLIENT_ID environment variable is missing.');
+  }
   const params = new URLSearchParams({
     client_id: YOUTUBE_CONFIG.clientId,
     redirect_uri: YOUTUBE_CONFIG.redirectUri,
@@ -9,6 +12,7 @@ export function buildYouTubeAuthUrl() {
     access_type: 'offline',
     prompt: 'consent'
   });
+  if (state) params.set('state', state);
   return `https://accounts.google.com/o/oauth2/v2/auth?${params.toString()}`;
 }
 

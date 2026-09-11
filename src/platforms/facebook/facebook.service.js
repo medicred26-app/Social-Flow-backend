@@ -12,8 +12,8 @@ export class FacebookService extends BasePlatformService {
     super('facebook', 'Facebook Page');
   }
 
-  getAuthUrl() {
-    return buildFacebookAuthUrl();
+  getAuthUrl(req) {
+    return buildFacebookAuthUrl(undefined, req?.oauthState);
   }
 
   async connect(params) {
